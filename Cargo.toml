@@ -2,6 +2,10 @@
 name = "braintree"
 version = "0.0.1"
 authors = ["Damien Radtke <damienradtke@gmail.com>"]
+description = "An unofficial Braintree client for Rust. Note that this is entirely unsupported and, at the moment, barely functional."
+repository = "https://github.com/dradtke/braintree-rs"
+keywords = ["braintree", "payments"]
+license = "MIT"
 
 [dependencies]
 RustyXML = "0.1.1"
