@@ -4,7 +4,6 @@ version = "0.0.1"
 authors = ["Damien Radtke <damienradtke@gmail.com>"]
 
 [dependencies]
-base64 = "0.5.2"
 RustyXML = "0.1.1"
 hyper = "0.10.10"
 hyper-native-tls = "0.2.2"

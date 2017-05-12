@@ -1,4 +1,3 @@
-extern crate base64;
 #[macro_use] extern crate hyper;
 extern crate hyper_native_tls;
 extern crate xml;
