@@ -1,0 +1,7 @@
+[package]
+name = "braintree-rs-example"
+version = "0.1.0"
+authors = ["Damien Radtke <damienradtke@gmail.com>"]
+
+[dependencies.braintree]
+path = ".."

@@ -1,5 +1,6 @@
 #[macro_use] extern crate hyper;
 extern crate hyper_native_tls;
+extern crate libflate;
 extern crate xml;
 
 use std::io::Read;
@@ -58,13 +59,36 @@ impl Braintree {
             .header(header::AcceptEncoding(vec![QualityItem::new(header::Encoding::Gzip, Quality(1000))]))
             .header(header::UserAgent(self.user_agent.clone()))
             .header(header::Authorization(self.creds.authorization_header()))
-            .header(XApiVersion(3));
+            .header(XApiVersion(4));
 
         if let Some(data) = body {
             req = req.body(hyper::client::Body::BufBody(data, data.len()));
         }
 
         req.send()
+    }
+
+    /// Reads the response body into a string, decoding it if necessary based on the Content-Encoding header.
+    fn read_response(&self, response: hyper::client::response::Response) -> hyper::error::Result<String> {
+        let mut body = match response.headers.get::<hyper::header::ContentLength>() {
+            Some(content_length) => Vec::with_capacity(content_length.0 as usize),
+            None => vec![],
+        };
+        response.read_to_end(&mut body)?;
+        match response.headers.get::<hyper::header::ContentEncoding>() {
+            None => Ok(String::from_utf8(body)?),
+            Some(content_encoding) => {
+                match content_encoding[0] {
+                    hyper::header::Encoding::Gzip => {
+                        let mut decoded = vec![];
+                        let mut decoder = libflate::gzip::Decoder::new(std::io::Cursor::new(body))?;
+                        decoder.read_to_end(&mut decoded)?;
+                        Ok(String::from_utf8(decoded)?)
+                    },
+                    _ => panic!("unsupported content encoding: {}", content_encoding[0]),
+                }
+            }
+        }
     }
 }
 
@@ -107,7 +131,7 @@ impl Credentials for ApiKey {
 pub struct TransactionGateway<'a>(&'a Braintree);
 
 impl<'a> TransactionGateway<'a> {
-    pub fn create(&self, transaction: transaction::Transaction) -> hyper::error::Result<Vec<u8>> {
+    pub fn create(&self, transaction: transaction::Transaction) -> hyper::error::Result<String> {
         let mut raw = String::new();
         raw.push_str("<transaction>");
         raw.push_str("<type>"); raw.push_str(&xml::escape(&transaction.typ)); raw.push_str("</type>");
@@ -121,15 +145,7 @@ impl<'a> TransactionGateway<'a> {
         raw.push_str("</transaction>");
 
         let mut response = self.0.execute(hyper::method::Method::Post, "transactions", Some(raw.as_bytes()))?;
-        match response.headers.get::<hyper::header::ContentType>() {
-            Some(content_type) => println!("content type: {}", content_type),
-            None => println!("no content type"),
-        }
-        let mut buffer = match response.headers.get::<hyper::header::ContentLength>() {
-            Some(content_length) => Vec::with_capacity(content_length.0 as usize),
-            None => vec![],
-        };
-        response.read_to_end(&mut buffer)?;
-        Ok(buffer)
+        // TODO: verify a 201 response, and return an error otherwise
+        self.0.read_response(response)
     }
 }
