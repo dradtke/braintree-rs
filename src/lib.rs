@@ -3,12 +3,27 @@ extern crate hyper_native_tls;
 extern crate libflate;
 extern crate xml;
 
+macro_rules! write_xml {
+    ($s:expr, $elem:expr, $value:expr) => {
+        if let Some(ref value) = $value {
+            write!($s, "<{}>{}</{}>", $elem, &xml::escape(&value.to_string()), $elem).unwrap();
+        }
+    }
+}
+
 use std::io::Read;
 
 header! { (XApiVersion, "X-ApiVersion") => [u8] }
 
+pub mod address;
 pub mod credit_card;
+pub mod error;
 pub mod transaction;
+
+pub use address::Address as Address;
+pub use credit_card::CreditCard as CreditCard;
+pub use error::Error as Error;
+pub use transaction::Transaction as Transaction;
 
 pub struct Braintree {
     creds: Box<Credentials>,
@@ -69,7 +84,7 @@ impl Braintree {
     }
 
     /// Reads the response body into a string, decoding it if necessary based on the Content-Encoding header.
-    fn read_response(&self, response: hyper::client::response::Response) -> hyper::error::Result<String> {
+    fn read_response(&self, response: &mut hyper::client::response::Response) -> hyper::error::Result<String> {
         let mut body = match response.headers.get::<hyper::header::ContentLength>() {
             Some(content_length) => Vec::with_capacity(content_length.0 as usize),
             None => vec![],
@@ -131,21 +146,16 @@ impl Credentials for ApiKey {
 pub struct TransactionGateway<'a>(&'a Braintree);
 
 impl<'a> TransactionGateway<'a> {
-    pub fn create(&self, transaction: transaction::Transaction) -> hyper::error::Result<String> {
-        let mut raw = String::new();
-        raw.push_str("<transaction>");
-        raw.push_str("<type>"); raw.push_str(&xml::escape(&transaction.typ)); raw.push_str("</type>");
-        raw.push_str("<amount>"); raw.push_str(&xml::escape(&transaction.amount)); raw.push_str("</amount>");
-        if let Some(credit_card) = transaction.credit_card {
-            raw.push_str("<credit_card>");
-            raw.push_str("<number>"); raw.push_str(&xml::escape(&credit_card.number)); raw.push_str("</number>");
-            raw.push_str("<expiration-date>"); raw.push_str(&xml::escape(&credit_card.expiration_date)); raw.push_str("</expiration-date>");
-            raw.push_str("</credit_card>");
+    pub fn create(&self, transaction: transaction::Transaction) -> error::Result<String> {
+        let mut response = self.0.execute(hyper::method::Method::Post, "transactions", Some(transaction.to_xml(None).as_bytes()))?;
+        let body = self.0.read_response(&mut response)?;
+        match response.status {
+            hyper::status::StatusCode::Created => Ok(body),
+            _ => Err(Error::Application(body)),
         }
-        raw.push_str("</transaction>");
-
-        let mut response = self.0.execute(hyper::method::Method::Post, "transactions", Some(raw.as_bytes()))?;
-        // TODO: verify a 201 response, and return an error otherwise
-        self.0.read_response(response)
     }
+}
+
+trait ToXml {
+    fn to_xml(&self, name: Option<&str>) -> String;
 }
