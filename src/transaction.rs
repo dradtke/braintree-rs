@@ -121,7 +121,7 @@ impl Default for Options {
         Options{
             add_billing_address_to_payment_method: None,
             hold_in_escrow: None,
-            paypal: None,
+            // paypal: None,
             skip_avs: None,
             skip_cvv: None,
             store_in_vault: None,
