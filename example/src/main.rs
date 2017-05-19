@@ -8,7 +8,7 @@ fn main() {
         std::env::var("PRIVATE_KEY").expect("environment variable PRIVATE_KEY is not defined"),
     );
 
-    println!("creating transaction");
+    println!("Creating a transaction...");
     match bt.transaction().create(braintree::Transaction{
         amount: String::from("13.00"),
         credit_card: Some(braintree::CreditCard{
@@ -16,9 +16,14 @@ fn main() {
             expiration_date: Some(String::from("10/18")),
             ..braintree::CreditCard::default()
         }),
+        options: Some(braintree::transaction::Options{
+            submit_for_settlement: Some(true),
+            ..braintree::transaction::Options::default()
+        }),
         ..braintree::Transaction::default()
     }) {
         Ok(response) => println!("{}", response),
-        Err(err) => println!("error: {:?}", err),
+        Err(braintree::Error::Http(e)) => panic!("http-level error: {:?}", e),
+        Err(braintree::Error::Api(err)) => println!("API error: {}", err.message),
     }
 }

@@ -1,3 +1,4 @@
+extern crate elementtree;
 #[macro_use] extern crate hyper;
 extern crate hyper_native_tls;
 extern crate libflate;
@@ -11,17 +12,21 @@ macro_rules! write_xml {
     }
 }
 
-use std::io::Read;
 
 header! { (XApiVersion, "X-ApiVersion") => [u8] }
 
+use std::io::Read;
 pub mod address;
 pub mod credit_card;
+pub mod descriptor;
+pub mod customer;
 pub mod error;
 pub mod transaction;
 
 pub use address::Address as Address;
 pub use credit_card::CreditCard as CreditCard;
+pub use descriptor::Descriptor as Descriptor;
+pub use customer::Customer as Customer;
 pub use error::Error as Error;
 pub use transaction::Transaction as Transaction;
 
@@ -151,7 +156,7 @@ impl<'a> TransactionGateway<'a> {
         let body = self.0.read_response(&mut response)?;
         match response.status {
             hyper::status::StatusCode::Created => Ok(body),
-            _ => Err(Error::Application(body)),
+            _ => Err(Error::from(body)),
         }
     }
 }
