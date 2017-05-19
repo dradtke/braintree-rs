@@ -1,3 +1,77 @@
+//! Bindings to Braintree's API.
+//!
+//! For those unfamiliar with Braintree or payments processing, [Braintree's
+//! homepage](https://www.braintreepayments.com/) is a good place to start to
+//! learn more, along with the [developer
+//! documentation](https://developers.braintreepayments.com/) which provides a
+//! good overview of the available tools and API's.
+//!
+//! Note that this is an unofficial library, with no direct support from
+//! Braintree themselves. The goal is to provide a set of reasonably-complete
+//! bindings to core functionality, but naturally a lot of it will be incomplete.
+//! Pull requests are welcome!
+//!
+//! The first thing you'll need to do is create a [sandbox
+//! account](https://www.braintreepayments.com/sandbox), which you can use
+//! to test your integration without needing to go through the full application
+//! process. Once you've created an account, follow [these
+//! instructions](https://articles.braintreepayments.com/control-panel/important-gateway-credentials#api-credentials)
+//! to retrieve your Merchant ID, Public Key, and Private Key. Once you have those,
+//! you should be able to create your first transaction! Naturally you'll need to
+//! substitute those three values in for the placeholders below, and it bears
+//! repeating that you should _never_ commit those credentials to source control:
+//!
+//! ```rust
+//! extern crate braintree;
+//! use braintree::{Braintree, CreditCard, Environment, Error, Transaction};
+//!
+//! fn main() {
+//!     // Create a handle to the Braintree API.
+//!     let bt = Braintree::new(
+//!         Environment::Sandbox,
+//!         "<merchant_id>",
+//!         "<public_key>",
+//!         "<private_key>",
+//!     );
+//!
+//!     // Attempt to charge the provided credit card $10.
+//!     let result = bt.transaction().create(Transaction{
+//!         amount: String::from("10.00"),
+//!         credit_card: Some(CreditCard{
+//!             number: Some(String::from("4111111111111111")),
+//!             expiration_date: Some(String::from("10/20")),
+//!             ..CreditCard::default()
+//!         }),
+//!         options: Some(braintree::transaction::Options{
+//!             submit_for_settlement: Some(true),
+//!             ..braintree::transaction::Options::default()
+//!         }),
+//!         ..Transaction::default()
+//!     });
+//!
+//!     // Check to see if it worked.
+//!     match result {
+//!         Ok(response) => println!("{}", response),
+//!         Err(Error::Http(err)) => panic!("HTTP-level error: {:?}", err),
+//!         Err(Error::Api(err)) => println!("API error: {}", err.message),
+//!     }
+//! }
+//! ```
+//!
+//! Once you've decided that your integration is good to go live, you'll need
+//! to get a separate set of production credentials by signing up on
+//! Braintree's main site. Remember to also change `Environment::Sandbox` to
+//! `Environment::Production` when you make the switch.
+//!
+//! # Note on API Design
+//!
+//! This crate is very much in a pre-alpha state, and as such the design of its
+//! API is subject to change. In particular, note that nearly every field
+//! defined on a model is an `Option` type. This is to be as explicit as
+//! possible about which fields get sent in any given API call, but it also
+//! adds some extra noise that may or may not be better than the alternative of
+//! only sending values that aren't blank.
+
 extern crate elementtree;
 #[macro_use] extern crate hyper;
 extern crate hyper_native_tls;
