@@ -2,9 +2,10 @@ extern crate braintree;
 use braintree::{Braintree, CreditCard, Environment, Error, Transaction};
 
 fn main() {
+    let merchant_id = std::env::var("MERCHANT_ID").expect("environment variable MERCHANT_ID is not defined");
     let bt = Braintree::new(
         Environment::Sandbox,
-        std::env::var("MERCHANT_ID").expect("environment variable MERCHANT_ID is not defined"),
+        merchant_id.clone(),
         std::env::var("PUBLIC_KEY").expect("environment variable PUBLIC_KEY is not defined"),
         std::env::var("PRIVATE_KEY").expect("environment variable PRIVATE_KEY is not defined"),
     );
@@ -24,7 +25,7 @@ fn main() {
     });
 
     match result {
-        Ok(response) => println!("{}", response),
+        Ok(transaction) => println!("Created transaction: https://sandbox.braintreegateway.com/merchants/{}/transactions/{}", merchant_id, transaction.id),
         Err(Error::Http(err)) => panic!("HTTP-level error: {:?}", err),
         Err(Error::Api(err)) => println!("API error: {}", err.message),
     }

@@ -51,7 +51,7 @@
 //!
 //!     // Check to see if it worked.
 //!     match result {
-//!         Ok(response) => println!("{}", response),
+//!         Ok(transaction) => println!("Created transaction: {}", transaction.id),
 //!         Err(Error::Http(err)) => panic!("HTTP-level error: {:?}", err),
 //!         Err(Error::Api(err)) => println!("API error: {}", err.message),
 //!     }
@@ -162,27 +162,22 @@ impl Braintree {
         req.send()
     }
 
-    /// Reads the response body into a string, decoding it if necessary based on the Content-Encoding header.
-    fn read_response(&self, response: &mut hyper::client::response::Response) -> hyper::error::Result<String> {
-        let mut body = match response.headers.get::<hyper::header::ContentLength>() {
-            Some(content_length) => Vec::with_capacity(content_length.0 as usize),
-            None => vec![],
-        };
-        response.read_to_end(&mut body)?;
-        match response.headers.get::<hyper::header::ContentEncoding>() {
-            None => Ok(String::from_utf8(body)?),
-            Some(content_encoding) => {
-                match content_encoding[0] {
-                    hyper::header::Encoding::Gzip => {
-                        let mut decoded = vec![];
-                        let mut decoder = libflate::gzip::Decoder::new(std::io::Cursor::new(body))?;
-                        decoder.read_to_end(&mut decoded)?;
-                        Ok(String::from_utf8(decoded)?)
-                    },
-                    _ => panic!("unsupported content encoding: {}", content_encoding[0]),
-                }
+    /// Returns a reader that will correctly decode the response body's data based on its Content-Encoding header.
+    fn response_reader(&self, response: hyper::client::response::Response) -> hyper::error::Result<Box<Read>> {
+        // TODO: This is written this way in order to appease the borrow checker, but there's probably a better way to do this.
+        let headers = response.headers.clone();
+        let content_encoding = headers.get::<hyper::header::ContentEncoding>();
+        let mut r: Box<Read> = Box::new(response);
+        // ???: Use Content-Length somehow to provide a hint to the consumer?
+        if let Some(content_encoding) = content_encoding {
+            match content_encoding[0] {
+                hyper::header::Encoding::Gzip => {
+                    r = Box::new(libflate::gzip::Decoder::new(r)?);
+                },
+                _ => panic!("unsupported content encoding: {}", content_encoding[0]),
             }
         }
+        Ok(r)
     }
 }
 
@@ -225,12 +220,11 @@ impl Credentials for ApiKey {
 pub struct TransactionGateway<'a>(&'a Braintree);
 
 impl<'a> TransactionGateway<'a> {
-    pub fn create(&self, transaction: transaction::Transaction) -> error::Result<String> {
-        let mut response = self.0.execute(hyper::method::Method::Post, "transactions", Some(transaction.to_xml(None).as_bytes()))?;
-        let body = self.0.read_response(&mut response)?;
+    pub fn create(&self, transaction: transaction::Transaction) -> error::Result<Transaction> {
+        let response = self.0.execute(hyper::method::Method::Post, "transactions", Some(transaction.to_xml(None).as_bytes()))?;
         match response.status {
-            hyper::status::StatusCode::Created => Ok(body),
-            _ => Err(Error::from(body)),
+            hyper::status::StatusCode::Created => Ok(Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::fmt::Write;
 use xml;
 
+#[derive(Debug)]
 pub struct CreditCard {
     pub cardholder_name: Option<String>,
     pub cvv: Option<String>,

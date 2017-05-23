@@ -1,6 +1,7 @@
 use std::fmt::Write;
 use xml;
 
+#[derive(Debug)]
 pub struct Descriptor {
     pub name: Option<String>,
     pub phone: Option<String>,

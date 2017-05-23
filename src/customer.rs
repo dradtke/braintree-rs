@@ -1,6 +1,7 @@
 use std::fmt::Write;
 use xml;
 
+#[derive(Debug)]
 pub struct Customer {
     pub company: Option<String>,
     pub email: Option<String>,

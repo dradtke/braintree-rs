@@ -1,8 +1,13 @@
+use elementtree;
+use std::convert::From;
 use std::collections::HashMap;
+use std::io::Read;
 use std::fmt::Write;
 use xml;
 
+#[derive(Debug)]
 pub struct Transaction {
+    pub id: String,
     pub typ: TransactionType,
     pub amount: String, // change to a decmial?
     pub billing_address_id: Option<String>,
@@ -27,6 +32,7 @@ pub struct Transaction {
 impl Default for Transaction {
     fn default() -> Transaction {
         Transaction{
+            id: String::from(""),
             typ: TransactionType::Sale,
             amount: String::from("0"),
             billing_address_id: None,
@@ -104,6 +110,20 @@ impl ::ToXml for Transaction {
     }
 }
 
+impl From<Box<Read>> for Transaction {
+    fn from(xml: Box<Read>) -> Transaction {
+        let root = elementtree::Element::from_reader(xml).unwrap();
+        Transaction{
+            id: String::from(root.find("id").unwrap().text()),
+            typ: TransactionType::from(String::from(root.find("type").unwrap().text())),
+            amount: String::from(root.find("amount").unwrap().text()),
+            // TODO: This is incredibly incomplete, but may remain that way until the transition to serde.
+            ..Transaction::default()
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Options {
     pub add_billing_address_to_payment_method: Option<bool>,
     pub hold_in_escrow: Option<bool>,
@@ -158,7 +178,18 @@ impl ::ToXml for Options {
 //     
 // }
 
+#[derive(Debug)]
 pub enum TransactionType {
     Sale,
     Refund,
+}
+
+impl From<String> for TransactionType {
+    fn from(s: String) -> TransactionType {
+        match s.as_ref() {
+            "sale" => TransactionType::Sale,
+            "refund" => TransactionType::Refund,
+            _ => panic!("unknown transaction type: {}", s),
+        }
+    }
 }
