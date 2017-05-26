@@ -1,6 +1,12 @@
 use std::fmt::Write;
 use xml;
 
+/// A record that includes credit card information.
+///
+/// Generally, it's recommended to use a payment method nonce instead of raw
+/// credit card data for compliance reasons. Handling credit card data yourself
+/// means that you're subject to [PCI SAQ D
+/// compliance](https://www.pcisecuritystandards.org/pci_security/completing_self_assessment).
 #[derive(Debug, Default)]
 pub struct CreditCard {
     pub cardholder_name: Option<String>,

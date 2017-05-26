@@ -23,7 +23,8 @@
 //!
 //! ```rust
 //! extern crate braintree;
-//! use braintree::{Braintree, CreditCard, Environment, Error, Transaction};
+//! use braintree::{Braintree, CreditCard, Environment, Error};
+//! use braintree::transaction;
 //!
 //! fn main() {
 //!     // Create a handle to the Braintree API.
@@ -35,14 +36,14 @@
 //!     );
 //!
 //!     // Attempt to charge the provided credit card $10.
-//!     let result = bt.transaction().create(Transaction{
+//!     let result = bt.transaction().create(transaction::Request{
 //!         amount: String::from("10.00"),
 //!         credit_card: Some(CreditCard{
 //!             number: Some(String::from("4111111111111111")),
 //!             expiration_date: Some(String::from("10/20")),
 //!             ..Default::default()
 //!         }),
-//!         options: Some(braintree::transaction::Options{
+//!         options: Some(transaction::Options{
 //!             submit_for_settlement: Some(true),
 //!             ..Default::default()
 //!         }),
@@ -102,7 +103,6 @@ pub use credit_card::CreditCard as CreditCard;
 pub use descriptor::Descriptor as Descriptor;
 pub use customer::Customer as Customer;
 pub use error::Error as Error;
-pub use transaction::Transaction as Transaction;
 
 pub struct Braintree {
     creds: Box<Credentials>,
@@ -139,6 +139,10 @@ impl Braintree {
 
     pub fn transaction(&self) -> TransactionGateway {
         TransactionGateway(self)
+    }
+
+    pub fn testing(&self) -> TestingGateway {
+        TestingGateway(self)
     }
 
     fn execute(&self, method: hyper::method::Method, path: &str, body: Option<&[u8]>) -> hyper::error::Result<hyper::client::response::Response> {
@@ -181,7 +185,7 @@ impl Braintree {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Environment {
     Sandbox,
     Production,
@@ -220,12 +224,75 @@ impl Credentials for ApiKey {
 pub struct TransactionGateway<'a>(&'a Braintree);
 
 impl<'a> TransactionGateway<'a> {
-    pub fn create(&self, transaction: transaction::Transaction) -> error::Result<Transaction> {
+    /// Create a transaction! This is the meat and potatoes of payments
+    /// processing right here. At a minimum you will need to provide an amount
+    /// and some form of payment method. If you don't specify a transaction
+    /// type it will default to a sale.
+    pub fn create(&self, transaction: transaction::Request) -> error::Result<transaction::Transaction> {
         let response = self.0.execute(hyper::method::Method::Post, "transactions", Some(transaction.to_xml(None).as_bytes()))?;
         match response.status {
-            hyper::status::StatusCode::Created => Ok(Transaction::from(self.0.response_reader(response)?)),
+            hyper::status::StatusCode::Created => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
             _ => Err(Error::from(self.0.response_reader(response)?)),
         }
+    }
+
+    pub fn submit_for_settlement(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
+        let response = self.0.execute(hyper::method::Method::Put, &format!("transactions/{}/submit_for_settlement", transaction_id), None)?;
+        match response.status {
+            hyper::status::StatusCode::Ok => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
+
+    /// If a transaction has yet to be captured (i.e. it should be in a state
+    /// of `authorized` or `submitted-for-settlement`), you can cancel it by
+    /// calling void.
+    pub fn void(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
+        let response = self.0.execute(hyper::method::Method::Put, &format!("transactions/{}/void", transaction_id), None)?;
+        match response.status {
+            hyper::status::StatusCode::Ok => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
+
+    /// When a transaction has been settled, you can refund it, which creates a
+    /// new credit transaction. You must pass a settled or settling
+    /// `transaction_id` in order to execute a valid refund.
+    pub fn refund(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
+        // TODO: add an optional amount to refund the transaction partially
+        let response = self.0.execute(hyper::method::Method::Post, &format!("transactions/{}/refund", transaction_id), None)?;
+        match response.status {
+            hyper::status::StatusCode::Created|hyper::status::StatusCode::Ok => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
+
+    /// Retrieve details for a transaction.
+    pub fn find(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
+        let response = self.0.execute(hyper::method::Method::Get, &format!("transactions/{}", transaction_id), None)?;
+        match response.status {
+            hyper::status::StatusCode::Ok => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
+}
+
+pub struct TestingGateway<'a>(&'a Braintree);
+
+impl<'a> TestingGateway<'a> {
+    fn set_status(&self, transaction_id: String, status: String) -> error::Result<transaction::Transaction> {
+        if self.0.creds.environment() == Environment::Production {
+            return Err(Error::TestOperationInProduction);
+        }
+        let response = self.0.execute(hyper::method::Method::Put, &format!("transactions/{}/{}", transaction_id, status), None)?;
+        match response.status {
+            hyper::status::StatusCode::Ok => Ok(transaction::Transaction::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
+
+    pub fn settle(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
+        self.set_status(transaction_id, String::from("settle"))
     }
 }
 

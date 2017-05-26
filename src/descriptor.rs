@@ -1,6 +1,12 @@
 use std::fmt::Write;
 use xml;
 
+/// A record that describes what your customers will see on their statement
+/// when they make a purchase through your application.
+///
+/// For more information, refer to [Braintree's
+/// articles](https://articles.braintreepayments.com/control-panel/transactions/descriptors)
+/// .
 #[derive(Debug, Default)]
 pub struct Descriptor {
     pub name: Option<String>,

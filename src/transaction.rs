@@ -5,11 +5,45 @@ use std::io::Read;
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug, Default)]
+/// A record containing transaction details.
+#[derive(Debug)]
 pub struct Transaction {
     pub id: String,
-    pub typ: TransactionType,
+    pub typ: Type,
     pub amount: String, // change to a decmial?
+    pub currency_iso_code: String,
+    pub status: Status,
+}
+
+impl From<Box<Read>> for Transaction {
+    fn from(xml: Box<Read>) -> Transaction {
+        let root = elementtree::Element::from_reader(xml).unwrap();
+        Transaction{
+            id: String::from(root.find("id").unwrap().text()),
+            typ: Type::from(String::from(root.find("type").unwrap().text())),
+            amount: String::from(root.find("amount").unwrap().text()),
+            currency_iso_code: String::from(root.find("currency-iso-code").unwrap().text()),
+            status: Status::from(String::from(root.find("status").unwrap().text())),
+        }
+    }
+}
+
+/// A record detailing a new transaction request.
+///
+/// Since you probably won't be using all of these fields each time,
+/// you'll want to use the `Default` trait to fill it out:
+///
+/// ```rust
+/// TransactionRequest{
+///     amount: String::from("10.00"),
+///     ..Default::default()
+/// }
+/// ```
+#[derive(Debug, Default)]
+pub struct Request {
+    pub typ: Type,
+    pub amount: String, // change to a decmial?
+    pub order_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub billing: Option<::address::Address>,
     pub credit_card: Option<::credit_card::CreditCard>,
@@ -29,19 +63,15 @@ pub struct Transaction {
     pub tax_exempt: Option<bool>,
 }
 
-impl ::ToXml for Transaction {
+impl ::ToXml for Request {
     fn to_xml(&self, name: Option<&str>) -> String {
         let name = xml::escape(&name.unwrap_or("transaction"));
         let mut s = String::new();
         write!(s, "<{}>", name).unwrap();
 
-        write!(s, "<{}>{}</{}>", "type", match self.typ {
-            TransactionType::Sale => "sale",
-            TransactionType::Refund => "refund",
-        }, "type").unwrap();
-
+        write!(s, "<type>{}</type>", String::from(self.typ)).unwrap();
         write!(s, "<amount>{}</amount>", xml::escape(&self.amount)).unwrap();
-
+        write_xml!(s, "order-id", self.order_id);
         write_xml!(s, "billing-address-id", self.billing_address_id);
 
         if let Some(ref billing) = self.billing { write!(s, "{}", billing.to_xml(Some("billing"))).unwrap(); }
@@ -80,19 +110,6 @@ impl ::ToXml for Transaction {
 
         write!(s, "</{}>", name).unwrap();
         s
-    }
-}
-
-impl From<Box<Read>> for Transaction {
-    fn from(xml: Box<Read>) -> Transaction {
-        let root = elementtree::Element::from_reader(xml).unwrap();
-        Transaction{
-            id: String::from(root.find("id").unwrap().text()),
-            typ: TransactionType::from(String::from(root.find("type").unwrap().text())),
-            amount: String::from(root.find("amount").unwrap().text()),
-            // TODO: This is incredibly incomplete, but may remain that way until the transition to serde.
-            ..Transaction::default()
-        }
     }
 }
 
@@ -135,24 +152,94 @@ impl ::ToXml for Options {
 //     
 // }
 
-#[derive(Debug)]
-pub enum TransactionType {
+#[derive(Copy, Clone, Debug)]
+pub enum Type {
     Sale,
-    Refund,
+    Credit,
 }
 
-impl Default for TransactionType {
-    fn default() -> TransactionType {
-        TransactionType::Sale
+impl Default for Type {
+    fn default() -> Type {
+        Type::Sale
     }
 }
 
-impl From<String> for TransactionType {
-    fn from(s: String) -> TransactionType {
+impl From<String> for Type {
+    fn from(s: String) -> Type {
         match s.as_ref() {
-            "sale" => TransactionType::Sale,
-            "refund" => TransactionType::Refund,
+            "sale" => Type::Sale,
+            "credit" => Type::Credit,
             _ => panic!("unknown transaction type: {}", s),
+        }
+    }
+}
+
+impl From<Type> for String {
+    fn from(t: Type) -> String {
+        match t {
+            Type::Sale => String::from("sale"),
+            Type::Credit => String::from("credit"),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Status {
+    AuthorizationExpired,
+    Authorizing,
+    Authorized,
+    GatewayRejected,
+    Failed,
+    ProcessorDeclined,
+    Settled,
+    SettlementConfirmed,
+    SettlementDeclined,
+    SettlementPending,
+    Settling,
+    SubmittedForSettlement,
+    Voided,
+    Unrecognized,
+}
+
+impl From<String> for Status {
+    fn from(s: String) -> Status {
+        match s.as_ref() {
+            "authorization_expired" => Status::AuthorizationExpired,
+            "authorizing" => Status::Authorizing,
+            "authorized" => Status::Authorized,
+            "gateway_rejected" => Status::GatewayRejected,
+            "failed" => Status::Failed,
+            "processor_declined" => Status::ProcessorDeclined,
+            "settled" => Status::Settled,
+            "settlement_confirmed" => Status::SettlementConfirmed,
+            "settlement_declined" => Status::SettlementDeclined,
+            "settlement_pending" => Status::SettlementPending,
+            "settling" => Status::Settling,
+            "submitted_for_settlement" => Status::SubmittedForSettlement,
+            "voided" => Status::Voided,
+            "unrecognized" => Status::Unrecognized,
+            _ => panic!("unknown transaction status: {}", s),
+        }
+    }
+}
+
+impl From<Status> for String {
+    fn from(s: Status) -> String {
+        match s {
+            Status::AuthorizationExpired => String::from("authorization_expired"),
+            Status::Authorizing => String::from("authorizing"),
+            Status::Authorized => String::from("authorized"),
+            Status::GatewayRejected => String::from("gateway_rejected"),
+            Status::Failed => String::from("failed"),
+            Status::ProcessorDeclined => String::from("processor_declined"),
+            Status::Settled => String::from("settled"),
+            Status::SettlementConfirmed => String::from("settlement_confirmed"),
+            Status::SettlementDeclined => String::from("settlement_declined"),
+            Status::SettlementPending => String::from("settlement_pending"),
+            Status::Settling => String::from("settling"),
+            Status::SubmittedForSettlement => String::from("submitted_for_settlement"),
+            Status::Voided => String::from("voided"),
+            Status::Unrecognized => String::from("unrecognized"),
         }
     }
 }

@@ -3,5 +3,8 @@ name = "braintree-rs-example"
 version = "0.1.0"
 authors = ["Damien Radtke <damienradtke@gmail.com>"]
 
+[dependencies]
+clap = "2.24"
+
 [dependencies.braintree]
-path = ".."
+path = "../.."
