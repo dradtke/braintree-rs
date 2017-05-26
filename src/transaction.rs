@@ -34,7 +34,7 @@ impl From<Box<Read>> for Transaction {
 /// you'll want to use the `Default` trait to fill it out:
 ///
 /// ```rust
-/// TransactionRequest{
+/// transaction::Request{
 ///     amount: String::from("10.00"),
 ///     ..Default::default()
 /// }
