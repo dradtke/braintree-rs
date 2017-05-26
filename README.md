@@ -8,16 +8,11 @@ If you clone the repository somewhere, you'll find a program in
 transactions. Example invocations are:
 
 ```sh
-# Create a transaction
-$ cargo run -- create <amount>
-# Find a transaction
-$ cargo run -- find <transaction_id>
-# Void a transaction
-$ cargo run -- void <transaction_id>
-# Force a transaction into a settled state
-$ cargo run -- settle <transaction_id>
-# Refund a settled transaction
-$ cargo run -- refund <transaction_id>
+$ cargo run -- create <amount> # Create a transaction
+$ cargo run -- find <transaction_id> # Find a transaction
+$ cargo run -- void <transaction_id> # Void a transaction
+$ cargo run -- settle <transaction_id> # Force a transaction into a settled state
+$ cargo run -- refund <transaction_id> # Refund a settled transaction
 ```
 
 ## TODO

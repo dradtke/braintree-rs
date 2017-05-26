@@ -23,9 +23,11 @@
 //!
 //! ```rust
 //! extern crate braintree;
-//! use braintree::{Braintree, CreditCard, Environment, Error};
+//! 
+//! use braintree::{Braintree, CreditCard, Environment};
 //! use braintree::transaction;
-//!
+//! use std::error::Error;
+//! 
 //! fn main() {
 //!     // Create a handle to the Braintree API.
 //!     let bt = Braintree::new(
@@ -34,7 +36,7 @@
 //!         "<public_key>",
 //!         "<private_key>",
 //!     );
-//!
+//! 
 //!     // Attempt to charge the provided credit card $10.
 //!     let result = bt.transaction().create(transaction::Request{
 //!         amount: String::from("10.00"),
@@ -49,12 +51,11 @@
 //!         }),
 //!         ..Default::default()
 //!     });
-//!
+//! 
 //!     // Check to see if it worked.
 //!     match result {
 //!         Ok(transaction) => println!("Created transaction: {}", transaction.id),
-//!         Err(Error::Http(err)) => panic!("HTTP-level error: {:?}", err),
-//!         Err(Error::Api(err)) => println!("API error: {}", err.message),
+//!         Err(err) => println!("Error: {}", err.description()),
 //!     }
 //! }
 //! ```
