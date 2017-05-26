@@ -1,21 +1,11 @@
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Descriptor {
     pub name: Option<String>,
     pub phone: Option<String>,
     pub url: Option<String>,
-}
-
-impl Default for Descriptor {
-    fn default() -> Descriptor {
-        Descriptor{
-            name: None,
-            phone: None,
-            url: None,
-        }
-    }
 }
 
 impl ::ToXml for Descriptor {

@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Customer {
     pub company: Option<String>,
     pub email: Option<String>,
@@ -11,21 +11,6 @@ pub struct Customer {
     pub last_name: Option<String>,
     pub phone: Option<String>,
     pub website: Option<String>,
-}
-
-impl Default for Customer {
-    fn default() -> Customer {
-        Customer{
-            company: None,
-            email: None,
-            fax: None,
-            first_name: None,
-            id: None,
-            last_name: None,
-            phone: None,
-            website: None,
-        }
-    }
 }
 
 impl ::ToXml for Customer {

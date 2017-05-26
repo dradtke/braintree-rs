@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CreditCard {
     pub cardholder_name: Option<String>,
     pub cvv: Option<String>,
@@ -10,20 +10,6 @@ pub struct CreditCard {
     pub expiration_year: Option<String>,
     pub number: Option<String>,
     pub token: Option<String>,
-}
-
-impl Default for CreditCard {
-    fn default() -> CreditCard {
-        CreditCard{
-            cardholder_name: None,
-            cvv: None,
-            expiration_date: None,
-            expiration_month: None,
-            expiration_year: None,
-            number: None,
-            token: None,
-        }
-    }
 }
 
 impl ::ToXml for CreditCard {

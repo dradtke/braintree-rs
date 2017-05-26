@@ -5,7 +5,7 @@ use std::io::Read;
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Transaction {
     pub id: String,
     pub typ: TransactionType,
@@ -27,33 +27,6 @@ pub struct Transaction {
     pub shipping_address_id: Option<String>,
     pub tax_amount: Option<String>,
     pub tax_exempt: Option<bool>,
-}
-
-impl Default for Transaction {
-    fn default() -> Transaction {
-        Transaction{
-            id: String::from(""),
-            typ: TransactionType::Sale,
-            amount: String::from("0"),
-            billing_address_id: None,
-            billing: None,
-            credit_card: None,
-            custom_fields: HashMap::new(),
-            customer: None,
-            customer_id: None,
-            descriptor: None,
-            options: None,
-            payment_method_nonce: None,
-            payment_method_token: None,
-            purchase_order_number: None,
-            recurring: None,
-            service_fee_amount: None,
-            shipping: None,
-            shipping_address_id: None,
-            tax_amount: None,
-            tax_exempt: None,
-        }
-    }
 }
 
 impl ::ToXml for Transaction {
@@ -123,7 +96,7 @@ impl From<Box<Read>> for Transaction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Options {
     pub add_billing_address_to_payment_method: Option<bool>,
     pub hold_in_escrow: Option<bool>,
@@ -134,22 +107,6 @@ pub struct Options {
     pub store_in_vault_on_success: Option<bool>,
     pub store_shipping_address_in_vault: Option<bool>,
     pub submit_for_settlement: Option<bool>,
-}
-
-impl Default for Options {
-    fn default() -> Options {
-        Options{
-            add_billing_address_to_payment_method: None,
-            hold_in_escrow: None,
-            // paypal: None,
-            skip_avs: None,
-            skip_cvv: None,
-            store_in_vault: None,
-            store_in_vault_on_success: None,
-            store_shipping_address_in_vault: None,
-            submit_for_settlement: None,
-        }
-    }
 }
 
 impl ::ToXml for Options {
@@ -182,6 +139,12 @@ impl ::ToXml for Options {
 pub enum TransactionType {
     Sale,
     Refund,
+}
+
+impl Default for TransactionType {
+    fn default() -> TransactionType {
+        TransactionType::Sale
+    }
 }
 
 impl From<String> for TransactionType {

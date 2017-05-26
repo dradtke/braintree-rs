@@ -15,13 +15,13 @@ fn main() {
         credit_card: Some(CreditCard{
             number: Some(String::from("4111111111111111")),
             expiration_date: Some(String::from("10/20")),
-            ..CreditCard::default()
+            ..Default::default()
         }),
         options: Some(braintree::transaction::Options{
             submit_for_settlement: Some(true),
-            ..braintree::transaction::Options::default()
+            ..Default::default()
         }),
-        ..Transaction::default()
+        ..Default::default()
     });
 
     match result {
