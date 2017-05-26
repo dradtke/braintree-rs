@@ -65,14 +65,10 @@
 //! Braintree's main site. Remember to also change `Environment::Sandbox` to
 //! `Environment::Production` when you make the switch.
 //!
-//! # Note on API Design
+//! # Stability Note
 //!
 //! This crate is very much in a pre-alpha state, and as such the design of its
-//! API is subject to change. In particular, note that nearly every field
-//! defined on a model is an `Option` type. This is to be as explicit as
-//! possible about which fields get sent in any given API call, but it also
-//! adds some extra noise that may or may not be better than the alternative of
-//! only sending values that aren't blank.
+//! API is subject to change. You have been forewarned!
 
 extern crate elementtree;
 #[macro_use] extern crate hyper;
@@ -227,8 +223,18 @@ pub struct TransactionGateway<'a>(&'a Braintree);
 impl<'a> TransactionGateway<'a> {
     /// Create a transaction! This is the meat and potatoes of payments
     /// processing right here. At a minimum you will need to provide an amount
-    /// and some form of payment method. If you don't specify a transaction
-    /// type it will default to a sale.
+    /// and some form of payment method.
+    ///
+    /// Note that in order for the transaction to process, you'll need to do
+    /// one of two things: create the transaction with the
+    /// `submit_for_settlement` option set to `true`, or save the transaction
+    /// id and call `submit_for_settlement()` with it later. Failure to do so
+    /// will result in a lack of money flowing into your bank account, which is
+    /// obviously no good.
+    ///
+    /// For more information, check out Braintree's documentation on the
+    /// [transaction
+    /// lifecycle](https://articles.braintreepayments.com/support/get-started/transaction-life-cycle).
     pub fn create(&self, transaction: transaction::Request) -> error::Result<transaction::Transaction> {
         let response = self.0.execute(hyper::method::Method::Post, "transactions", Some(transaction.to_xml(None).as_bytes()))?;
         match response.status {
@@ -237,6 +243,7 @@ impl<'a> TransactionGateway<'a> {
         }
     }
 
+    /// Submit an authorized transaction for settlement.
     pub fn submit_for_settlement(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
         let response = self.0.execute(hyper::method::Method::Put, &format!("transactions/{}/submit_for_settlement", transaction_id), None)?;
         match response.status {
@@ -246,7 +253,7 @@ impl<'a> TransactionGateway<'a> {
     }
 
     /// If a transaction has yet to be captured (i.e. it should be in a state
-    /// of `authorized` or `submitted-for-settlement`), you can cancel it by
+    /// of `Authorized` or `SubmittedForSettlement`), you can cancel it by
     /// calling void.
     pub fn void(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
         let response = self.0.execute(hyper::method::Method::Put, &format!("transactions/{}/void", transaction_id), None)?;
@@ -292,6 +299,8 @@ impl<'a> TestingGateway<'a> {
         }
     }
 
+    /// Force a transaction into a settled state. Note that this is intended
+    /// for testing, and will only work in the Sandbox environment.
     pub fn settle(&self, transaction_id: String) -> error::Result<transaction::Transaction> {
         self.set_status(transaction_id, String::from("settle"))
     }
