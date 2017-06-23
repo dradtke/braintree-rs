@@ -1,6 +1,6 @@
 [package]
 name = "braintree"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Damien Radtke <damienradtke@gmail.com>"]
 description = "An unofficial Braintree client for Rust."
 repository = "https://github.com/dradtke/braintree-rs"
