@@ -84,11 +84,20 @@ macro_rules! write_xml {
     }
 }
 
+macro_rules! write_xml_type {
+    ($s:expr, $elem:expr, $typ:expr, $value:expr) => {
+        if let Some(ref value) = $value {
+            write!($s, "<{} type=\"{}\">{}</{}>", $elem, $typ, &xml::escape(&value.to_string()), $elem).unwrap();
+        }
+    }
+}
+
 
 header! { (XApiVersion, "X-ApiVersion") => [u8] }
 
 use std::io::Read;
 pub mod address;
+pub mod client_token;
 pub mod credit_card;
 pub mod descriptor;
 pub mod customer;
@@ -132,6 +141,10 @@ impl Braintree {
             merchant_url: merchant_url,
             user_agent: format!("Braintree Rust {}", env!("CARGO_PKG_VERSION")),
         }
+    }
+
+    pub fn client_token(&self) -> ClientTokenGateway {
+        ClientTokenGateway(self)
     }
 
     pub fn transaction(&self) -> TransactionGateway {
@@ -216,6 +229,25 @@ impl Credentials for ApiKey {
     fn environment(&self) -> Environment { self.env }
     fn merchant_id(&self) -> &str { &self.merchant_id }
     fn authorization_header(&self) -> hyper::header::Basic { self.auth_header.clone() }
+}
+
+pub struct ClientTokenGateway<'a>(&'a Braintree);
+
+impl<'a> ClientTokenGateway<'a> {
+    /// Generate a client token. The simplest usage is:
+    ///
+    /// ```rust
+    /// let client_token = bt.client_token().generate(Default::default());
+    /// ```
+    ///
+    /// Further customization can be done by manually specifying your own `client_token::Request` value.
+    pub fn generate(&self, req: client_token::Request) -> error::Result<client_token::ClientToken> {
+        let response = self.0.execute(hyper::method::Method::Post, "client_token", Some(req.to_xml(None).as_bytes()))?;
+        match response.status {
+            hyper::status::StatusCode::Created => Ok(client_token::ClientToken::from(self.0.response_reader(response)?)),
+            _ => Err(Error::from(self.0.response_reader(response)?)),
+        }
+    }
 }
 
 pub struct TransactionGateway<'a>(&'a Braintree);
