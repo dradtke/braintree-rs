@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use xml;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Address {
     pub company: Option<String>,
     pub country_code_alpha2: Option<String>,
